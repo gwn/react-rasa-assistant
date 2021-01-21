@@ -11,26 +11,37 @@ const defaultComponents = {
 
     Button: props => e('button', props),
 
-    Input: ({onChangeText, ...props}) =>
-        e('input', {...props, onChange: e => onChangeText(e.target.value)}),
+    Input: ({onRef, onChangeText, onEnter, ...props}) =>
+        e('input', {
+            ...props,
+            ref: onRef,
+            onChange: e => onChangeText(e.target.value),
+            onKeyDown: e => e.key === 'Enter' && onEnter(),
+        }),
+
+    Template: ({msgHistory, input, sendButton, restartButton}) =>
+        e(Fragment, {}, msgHistory, input, sendButton, restartButton),
 }
 
 module.exports = ({
     rasaSocket,
-    userId,
     initialSessionId,
     initialMessage,
     onCustomResponse = () => null,
     onError = () => null,
     components: {
         TextMessage = defaultComponents.TextMessage,
-        Button = defaultComponents.Button,
+        OptButton = defaultComponents.Button,
+        SendButton = defaultComponents.Button,
+        RestartButton = defaultComponents.Button,
         Input = defaultComponents.Input,
+        Template = defaultComponents.Template,
     } = defaultComponents,
 }) => {
     const
         sockRef = useRef(null),
         sessionIdRef = useRef(null),
+        inputRef = useRef(null),
 
         [msgDraft, setMsgDraft] = useState(''),
 
@@ -61,11 +72,19 @@ module.exports = ({
             [sockRef.current, sessionIdRef.current],
         ),
 
+        sendDraft = useCallback(
+            () => {
+                msgAssistant(msgDraft)
+                pushMsgToHistory({direction: 'out', text: msgDraft})
+                setMsgDraft('')
+            },
+
+            [msgDraft],
+        ),
+
         restartSession = useCallback(
-            (sock, sessionId) =>
-                sockRef.current.emit('session_request', {
-                    session_id: sessionId || String(Date.now()) + userId,
-                }),
+            (sock, session_id) =>
+                sockRef.current.emit('session_request', {session_id}),
         ),
 
         handleIncoming = useCallback(
@@ -108,6 +127,8 @@ module.exports = ({
 
                 setMsgHistory([])
 
+                inputRef.current.focus()
+
                 if (initialMessage) {
                     msgAssistant(initialMessage)
                     pushMsgToHistory({direction: 'out', text: initialMessage})
@@ -125,50 +146,46 @@ module.exports = ({
             })
     }, [])
 
-    return [
-        ...msgHistory.map((msg, msgIdx) => {
+    return e(Template, {
+        msgHistory: msgHistory.map((msg, msgIdx) => {
             if (msg.text)
                 return e(TextMessage, {key: msg.ts, ...msg})
 
             if ((msg.quick_replies || msg.buttons))
                 return (msg.quick_replies || msg.buttons).map(btn =>
-                    e(Button, {
+                    e(OptButton, {
                         key: msg.ts + btn.payload,
                         children: btn.title,
                         onClick: () => {
                             msgAssistant(btn.payload)
                             pushMsgToHistory({direction: 'out',text: btn.title})
+                            inputRef.current.focus()
 
                             if (msg.quick_replies)
                                 removeMsgFromHistory(msgIdx)
                         },
-                    })
+                    }),
                 )
 
             if (msg.component)
                 return e(Fragment, {key: msg.ts, children: msg.component})
         }),
 
-        e(Input, {
-            key: 'msgInput',
+        input: e(Input, {
             value: msgDraft,
             onChangeText: setMsgDraft,
+            onEnter: sendDraft,
+            onRef: el => { inputRef.current = el },
         }),
 
-        e(Button, {
-            key: 'sendBtn',
-            onClick: () => {
-                msgAssistant(msgDraft)
-                pushMsgToHistory({direction: 'out', text: msgDraft})
-                setMsgDraft('')
-            },
+        sendButton: e(SendButton, {
+            onClick: sendDraft,
             children: 'Send',
         }),
 
-        e(Button, {
-            key: 'restartBtn',
+        restartButton: e(RestartButton, {
             onClick: restartSession,
             children: 'Restart',
         }),
-    ]
+    })
 }
