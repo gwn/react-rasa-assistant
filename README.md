@@ -29,9 +29,13 @@ Basic example:
 
     const component = () =>
         <IxoAssistant
-            rasaUrl='http(s)://address/of/your/rasa/service'
-            sender='<some kind of unique user identifier>'
-            initialMessage='Hello dear ixobot'
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+            }}
+            initialSessionId='<optional-session-id-to-continue-a-previous-session>'
+            initialMessage='<optional initial message>'
+            onError={e => console.error('Oh dear', e)}
         />
 
 
@@ -43,9 +47,10 @@ Customize components:
 
     const component = () =>
         <IxoAssistant
-            rasaUrl='http(s)://address/of/your/rasa/service'
-            sender='<some kind of unique user identifier>'
-            initialMessage='Hello dear ixobot'
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+            }}
             components={{
                 TextMessage: ({ts, direction, text}) =>
                     <div class="ixo-assistant-msg">
@@ -55,20 +60,45 @@ Customize components:
                         <span class="text">{text}</span>
                     </div>,
 
-                Button: ({children, onClick}) =>
+                OptButton: ({onClick, children}) =>
                     <button
-                        class="ixo-assistant-btn"
+                        class="ixo-assistant-opt-btn"
                         onClick={onClick}
-                    >
-                        {children}
-                    </button>,
+                        children={children}
+                    />,
 
-                Input: ({value, onChange}) =>
+                Input: ({value, onChangeText, onEnter, onRef}) =>
                     <input
                         class="ixo-assistant-msg-input"
                         value={value}
-                        onChange={onChange}
+                        onChange={e => onChangeText(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && onEnter()}
+                        ref={onRef}
                     />,
+
+                SendButton: ({onClick}) =>
+                    <button
+                        class="ixo-assistant-send-btn"
+                        onClick={onClick}
+                        children='CLICK TO SEND!!!'
+                    />,
+
+                RestartButton: ({onClick}) =>
+                    <button
+                        class="ixo-assistant-restart-btn"
+                        onClick={onClick}
+                        children='Restart'
+                    />,
+
+                Template: ({msgHistory, input, sendButton, restartButton}) => <>
+                    {msgHistory}
+
+                    <div>
+                        {input}
+                        {sendButton}
+                        {restartButton}
+                    </div>
+                </>,
             }}
         />
 
@@ -80,23 +110,34 @@ Use in React Native:
         {Text, TextInput, TouchableHighlight} = require('react-native'),
         IxoAssistant = require('@ixo/assistant-ui-lite')
 
-    <IxoAssistant
-        rasaUrl='http(s)://address/of/your/rasa/service'
-        sender='<some kind of unique user identifier>'
-        initialMessage='Hello dear ixobot'
-        components={{
-            TextMessage: ({direction, text}) =>
-                <Text>{{in: '<', out: '>'}[direction]} {text}</Text>,
+    const Button = ({children, onClick}) =>
+        <TouchableHighlight onPress={onClick}>
+            <Text>{children}</Text>
+        </TouchableHighlight>,
 
-            Button: ({children, onClick}) =>
-                <TouchableHighlight onPress={onClick}>
-                    <Text>{children}</Text>
-                </TouchableHighlight>,
+    const component = () =>
+        <IxoAssistant
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+                transports: ['websocket'], // ATTENTION
+            }}
+            components={{
+                TextMessage: ({ts, direction, text}) =>
+                    <Text>{{in: '<', out: '>'}[direction]} {text}</Text>,
 
-            Input: ({value, onChange}) =>
-                <TextInput defaultValue={value} onChangeText={onChange} />,
-        }}
-    />
+                OptButton: Button,
+                SendButton: Button,
+                RestartButton: Button,
+
+                Input: ({value, onChangeText, onRef}) =>
+                    <TextInput
+                        defaultValue={value}
+                        onChangeText={onChangeText}
+                        ref={onRef}
+                    />,
+            }}
+        />
 
 
 Handle custom responses:
@@ -107,9 +148,10 @@ Handle custom responses:
 
     const component = () =>
         <IxoAssistant
-            rasaUrl='http(s)://address/of/your/rasa/service'
-            sender='<some kind of unique user identifier>'
-            initialMessage='Hello dear ixobot'
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+            }}
             onCustomResponse={(customResp, pushMsgToHistory) => {
                 if (customResp.action == 'dummy.sayNiceThings')
                     pushMsgToHistory({
@@ -131,9 +173,10 @@ Handle custom responses: A more advanced example:
         const walletAddr = getWalletAddressSomehow()
 
         <IxoAssistant
-            rasaUrl='http(s)://address/of/your/rasa/service'
-            sender='<some kind of unique user identifier>'
-            initialMessage='Hello dear ixobot'
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+            }}
             onCustomResponse={(customResp, pushMsgToHistory) => {
                 if (customResp.action === 'wallet.printAddress')
                     pushMsgToHistory({direction: 'in', text: walletAddr})
@@ -158,7 +201,7 @@ Handle custom responses: A more advanced example:
 
                     pushMsgToHistory({
                         direction: 'in',
-                        buttons: [
+                        quick_replies: [
                             {title: 'Yes', payload: '/basics.yes'},
                             {title: 'No', payload: '/basics.no'},
                         ]
@@ -179,10 +222,11 @@ with a large number of custom responses:
 
     const component = () =>
         <IxoAssistant
-            rasaUrl='http(s)://address/of/your/rasa/service'
-            sender='<some kind of unique user identifier>'
-            initialMessage='Hello dear ixobot'
-            onCustomResponse=(resp, pushMsgToHistory) => {
+            rasaSocket={{
+                url: 'http(s)://address/of/your/rasa/socket',
+                path: '/socketio',
+            }}
+            onCustomResponse={(resp, pushMsgToHistory) => {
                 const
                     [actionCategory, actionId] = resp.action.split('.'),
                     handler = handlers[actionCategory][actionId]
@@ -195,7 +239,7 @@ with a large number of custom responses:
 
                 msgs.forEach(msg =>
                     pushMsgToHistory({direction: 'in', ...msg}))
-            }
+            }}
         />
 
 In `./customResponseHandlers.js`
@@ -219,7 +263,7 @@ In `./customResponseHandlers.js`
             askSomethingSilly: () => [
                 {text: 'Want to play with me?'},
 
-                {buttons: [
+                {quick_replies: [
                     {title: 'Yes', payload: '/basics.yes'},
                     {title: 'No', payload: '/basics.no'},
                 ]},
@@ -239,11 +283,23 @@ In `./customResponseHandlers.js`
 
 ## API
 
-- `rasaUrl`: REST webhook URL for the rasa service
+- `rasaSocket`: An object with the following properties:
 
-- `sender`: A unique user id
+    - `url`: URL of the socket
+    - `path`: Path to the socket
 
-- `initialMessage`: The message that will start the conversation
+  Plus any other properties that are accepted by the socket
+  constructor method of the
+  [`socket.io-client`](https://www.npmjs.com/package/socket.io-client)
+  package.
+
+- `initialSessionId`: An optional session id that may be used to
+  continue a previous session.
+
+- `initialMessage`: The message that will start the conversation. Optional.
+
+- `onError`: A handler that gets called with an error object in
+  case of socket errors.
 
 - `onCustomResponse`: A handler for the custom responses returned from Rasa
 
@@ -252,9 +308,9 @@ In `./customResponseHandlers.js`
   - `resp`: The parsed custom response object exactly as returned from Rasa
 
   - `pushMsgToHistory(msg)`: A function that pushes the given
-    message to the message history. A message is an object with
-    a `direction` and one of the `text`, `buttons` or `component`
-    properties:
+    message to the message history. A message is an object with a
+    `direction` and one of the `text`, `buttons`, `quick_replies`
+    or `component` properties:
 
       - `direction`: Either `in` (for "incoming") or `out` (for
         "outgoing"
@@ -266,26 +322,64 @@ In `./customResponseHandlers.js`
         - `title`: The button title
         - `payload`: The button payload. Should be a valid Rasa intent.
 
+      - `quick_replies`: A list of button objects. Quick replies
+        only differ from buttons with their ability of
+        disappearing after being clicked on. Button object schema:
+
+        - `title`: The button title
+        - `payload`: The button payload. Should be a valid Rasa intent.
+
       - `component`: Any custom component
 
 - `components`: Components to customize the look of the assistant.
   Can also be used to integrate the assistant to the platforms
   other than the web. An object with the following keys:
 
-  - `TextMessage`: A custom component that will be sent the
-    following props:
+  - `TextMessage`: Custom component for single messages
 
+      - `ts`: Message timestamp
       - `direction`: The message direction, either `in` or `out`
       - `text`: The message text
 
-  - `Button`: A custom component that will be sent the following
-    props:
+  - `OptButton`: Custom component for the "quick reply" buttons
 
     - `children`: The button's content
     - `onClick`: Standard click handler
 
-  - `Input`: A custom component that will be sent the following
-    props:
+  - `SendButton`: Custom component for the message sending button
+
+    - `children`: The button's content
+    - `onClick`: Standard click handler
+
+  - `RestartButton`: Custom component for the session restart button
+
+    - `children`: The button's content
+    - `onClick`: Standard click handler
+
+  - `Input`: Custom component for the message input field
 
     - `value`: Input value
-    - `onChange`: Standard change handler
+
+    - `onChangeText`: A function that expects the updated value of
+      the input
+
+    - `onEnter`: A function that is expected to be called when the
+      enter key is pressed
+
+    - `onRef`: [A React ref callback](https://reactjs.org/docs/refs-and-the-dom.html#callback-refs)
+      that expects the underlying DOM element as its sole
+      parameter. When a custom input is used, the ref needs to be
+      captured this way, to enable the assistant UI library to
+      handle behavior such as auto focusing.
+
+  - `Template`: Template component that allows for free
+    positioning of the other components
+
+    - `msgHistory`: The message history part which contains all
+      the individual messages
+
+    - `input`: The new message input box
+
+    - `sendButton`
+
+    - `restartButton`
