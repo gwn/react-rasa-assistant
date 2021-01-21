@@ -1,0 +1,13 @@
+{
+  "name": "@ixo/assistant-ui-lite",
+  "version": "0.1.0",
+  "description": "A small footprint UI for the ixo-Assistant",
+  "main": "index.js",
+  "license": "ISC",
+  "dependencies": {
+    "debug": "^4.3.1"
+  },
+  "peerDependencies": {
+    "react": "^16.0.0"
+  }
+}
