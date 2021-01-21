@@ -5,9 +5,10 @@
   "main": "index.js",
   "license": "ISC",
   "dependencies": {
-    "debug": "^4.3.1"
+    "debug": "^4.3.1",
+    "socket.io-client": "^2.2.0"
   },
   "peerDependencies": {
-    "react": "^16.0.0"
+    "react": ">16.0.0"
   }
 }
