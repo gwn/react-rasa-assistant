@@ -229,7 +229,7 @@ with a large number of custom responses:
             onCustomResponse={(resp, pushMsgToHistory) => {
                 const
                     [actionCategory, actionId] = resp.action.split('.'),
-                    handler = handlers[actionCategory][actionId]
+                    handler = customResponseHandlers[actionCategory][actionId]
 
                 if (!handler)
                     return console.warn(
