@@ -1,62 +1,28 @@
 const
-    debug = require('debug')('ixo-assistant-ui-lite'),
     io = require('socket.io-client'),
-    {createElement: e, Fragment, useState, useEffect, useCallback, useRef}
-        = require('react')
+    {useState, useEffect, useCallback, useRef} = require('react')
 
-
-const defaultComponents = {
-    TextMessage: ({direction, text}) =>
-        e('div', null, {in: '<', out: '>'}[direction] + ' ' + text),
-
-    Button: props => e('button', props),
-
-    Input: ({onRef, onChangeText, onEnter, ...props}) =>
-        e('input', {
-            ...props,
-            ref: onRef,
-            onChange: e => onChangeText(e.target.value),
-            onKeyDown: e => e.key === 'Enter' && onEnter(),
-        }),
-
-    Template: ({msgHistory, input, sendButton, restartButton}) =>
-        e(Fragment, {}, msgHistory, input, sendButton, restartButton),
-}
 
 module.exports = ({
-    rasaSocket,
-    initialSessionId,
-    initialMessage,
-    onUtter = noop,
-    onCustomResponse = noop,
+    sockUrl,
+    sockOpts,
+    initSessionId,
+    initMsg,
     onError = noop,
-    components: {
-        TextMessage = defaultComponents.TextMessage,
-        OptButton = defaultComponents.Button,
-        SendButton = defaultComponents.Button,
-        RestartButton = defaultComponents.Button,
-        Input = defaultComponents.Input,
-        Template = defaultComponents.Template,
-    } = defaultComponents,
+    onUtter = noop,
 }) => {
     const
         sockRef = useRef(null),
         sessionIdRef = useRef(null),
         inputRef = useRef({focus: noop, blur: noop}),
 
-        [msgDraft, setMsgDraft] = useState(''),
+        [userText, setUserText] = useState(''),
 
         [msgHistory, setMsgHistory] = useState([]),
 
         pushMsgToHistory = useCallback(
-            msg => {
-                const fullMsg = {ts: Date.now(), ...msg}
-
-                setMsgHistory(lastMsgHistory => [...lastMsgHistory, fullMsg])
-                onUtter(fullMsg)
-            },
-
-            [onUtter],
+            msg =>
+                setMsgHistory(lastMsgHistory => [...lastMsgHistory, msg]),
         ),
 
         removeMsgFromHistory = useCallback(
@@ -73,128 +39,115 @@ module.exports = ({
 
         userUtter = useCallback(
             (text, payload) => {
-                debug('sending msg', {text, payload})
-
                 sockRef.current.emit('user_uttered', {
                     session_id: sessionIdRef.current,
                     message: payload || text,
                 })
 
-                pushMsgToHistory({direction: 'out', text})
+                const msg = {ts: Date.now(), direction: 'out', text}
+
+                onUtter(msg)
+                pushMsgToHistory(msg)
             },
 
             [sockRef.current, sessionIdRef.current],
         ),
 
-        sendMsg = useCallback(
+        sendUserText = useCallback(
             () => {
-                userUtter(msgDraft)
-                setMsgDraft('')
+                userUtter(userText)
+                setUserText('')
             },
 
-            [msgDraft],
+            [userText],
+        ),
+
+        selectOption = useCallback(
+            (text, payload, msgIdx) => {
+                userUtter(text, payload)
+
+                inputRef.current.focus()
+
+                if (msgHistory[msgIdx].quick_replies)
+                    removeMsgFromHistory(msgIdx)
+            }
         ),
 
         handleBotUtter = useCallback(
             msg => {
-                debug('bot_uttered', msg)
+                const
+                    {text, quick_replies, buttons} = msg,
 
-                if (msg.text)
-                    pushMsgToHistory({direction: 'in', text: msg.text})
+                    msgTpl = {
+                        ts: Date.now(),
+                        direction: 'in',
+                        metadata: msg.metadata,
+                    }
 
-                if (msg.quick_replies)
-                    pushMsgToHistory({
-                        direction: 'in', quick_replies: msg.quick_replies})
+                onUtter({...msgTpl, ...msg})
 
-                if (msg.buttons)
-                    pushMsgToHistory({direction: 'in', buttons: msg.buttons})
+                if (text)
+                    pushMsgToHistory({...msgTpl, text})
 
-                if (msg.quick_replies || msg.buttons)
+                if (quick_replies)
+                    pushMsgToHistory({...msgTpl, quick_replies})
+
+                if (buttons)
+                    pushMsgToHistory({...msgTpl, buttons})
+
+                if (!text && !quick_replies && !buttons)
+                    pushMsgToHistory({...msgTpl, ...msg})
+
+                if (quick_replies || buttons)
                     inputRef.current.blur()
-
-                if (!msg.text && !msg.quick_replies && !msg.buttons)
-                    onCustomResponse(msg, handleBotUtter)
             })
 
     useEffect(() => {
         const
-            {url: sockUrl, ...sockOpts} = rasaSocket,
-            sock = io(sockUrl, sockOpts)
+            [, sockHostname, sockPath] =
+                sockUrl.match(/^((?:http|ws)s?:\/\/[^/]+)(\/.*)$/),
+
+            sock = io(sockHostname, {path: sockPath, ...sockOpts})
 
         sockRef.current = sock
 
+        socketErrorEventNames
+            .forEach(errorEventName =>
+                sock.on(errorEventName, e =>
+                    onError({type: errorEventName, payload: e})))
+
         sock
-            .on('connect', () => restartSession(sock, initialSessionId))
-
-            .on('connect_error', e => {
-                debug('connect_error', e)
-                onError(e)
-            })
-
-            .on('disconnect', e => console.info('disconnect', e))
+            .on('connect', () => restartSession(sock, initSessionId))
 
             .on('session_confirm', sessInfo => {
-                debug('session confirmed', sessInfo)
-
                 sessionIdRef.current = sessInfo.session_id
 
                 setMsgHistory([])
 
                 inputRef.current.focus()
 
-                if (initialMessage)
-                    userUtter(initialMessage)
+                if (initMsg)
+                    userUtter(initMsg)
             })
 
             .on('bot_uttered', handleBotUtter)
-
-            .on('error', e => {
-                debug('error', e)
-                onError(e)
-            })
     }, [])
 
-    return e(Template, {
-        msgHistory: msgHistory.map((msg, msgIdx) => {
-            if (msg.text)
-                return e(TextMessage, {key: msg.ts, ...msg})
-
-            if ((msg.quick_replies || msg.buttons))
-                return (msg.quick_replies || msg.buttons).map(btn =>
-                    e(OptButton, {
-                        key: msg.ts + btn.payload,
-                        children: btn.title,
-                        onClick: () => {
-                            userUtter(btn.title, btn.payload)
-                            inputRef.current.focus()
-
-                            if (msg.quick_replies)
-                                removeMsgFromHistory(msgIdx)
-                        },
-                    }),
-                )
-
-            if (msg.component)
-                return e(Fragment, {key: msg.ts, children: msg.component})
-        }),
-
-        input: e(Input, {
-            value: msgDraft,
-            onChangeText: setMsgDraft,
-            onEnter: sendMsg,
-            onRef: el => { inputRef.current = el },
-        }),
-
-        sendButton: e(SendButton, {
-            onClick: sendMsg,
-            children: 'Send',
-        }),
-
-        restartButton: e(RestartButton, {
-            onClick: restartSession,
-            children: 'Restart',
-        }),
-    })
+    return {
+        msgHistory,
+        onInputRef: el => { inputRef.current = el },
+        userText,
+        setUserText,
+        sendUserText,
+        selectOption,
+        botUtter: handleBotUtter,
+        restartSession,
+    }
 }
 
 const noop = () => null
+
+const socketErrorEventNames = [
+    'error', 'connect_error', 'connect_timeout', 'reconnect_error',
+    'reconnect_failed', 'disconnect',
+]

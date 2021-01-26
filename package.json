@@ -1,12 +1,22 @@
 {
-  "name": "@ixo/assistant-ui-lite",
+  "name": "react-rasa-assistant",
   "version": "0.1.0",
-  "description": "A small footprint UI for the ixo-Assistant",
+  "description": "React hook for easily building custom Rasa assistants",
   "main": "index.js",
   "license": "ISC",
+  "author": "gwn <dev@gwn.wtf>",
+  "keywords": [
+    "react",
+    "rasa",
+    "ai",
+    "bot",
+    "botfront",
+    "nlp",
+    "nlu",
+    "assistant"
+  ],
   "dependencies": {
-    "debug": "^4.3.1",
-    "socket.io-client": "^2.2.0"
+    "socket.io-client": "^2.4.0"
   },
   "peerDependencies": {
     "react": ">16.0.0"
