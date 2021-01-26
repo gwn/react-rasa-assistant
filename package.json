@@ -1,6 +1,6 @@
 {
   "name": "react-rasa-assistant",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React hook for easily building custom Rasa assistants",
   "main": "index.js",
   "license": "ISC",
@@ -16,8 +16,8 @@
     "assistant"
   ],
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/gwn/react-rasa-assistant"
+    "type": "git",
+    "url": "https://github.com/gwn/react-rasa-assistant"
   },
   "dependencies": {
     "socket.io-client": "^2.4.0"
