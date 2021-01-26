@@ -298,38 +298,42 @@ In `./customResponseHandlers.js`
 
 - `initialMessage`: The message that will start the conversation. Optional.
 
-- `onError`: A handler that gets called with an error object in
-  case of socket errors.
+- `onError(error)`: A handler that gets called with an error
+  object in case of socket errors.
 
-- `onCustomResponse`: A handler for the custom responses returned from Rasa
+- `onUtter(msg)`: A callback that is called for each message sent /
+  received. Schema of the `msg` object:
 
-      onCustomResponse(resp, pushMsgToHistory)
+  - `ts`: Message timestamp
+
+  - `direction`: Either `in` (for "incoming") or `out` (for
+    "outgoing"
+
+  - `text`: The message text
+
+  - `buttons`: A list of button objects. Button object schema:
+
+    - `title`: The button title
+    - `payload`: The button payload. Should be a valid Rasa intent.
+
+  - `quick_replies`: A list of button objects. Quick replies
+    only differ from buttons with their ability of
+    disappearing after being clicked on. Button object schema:
+
+    - `title`: The button title
+    - `payload`: The button payload. Should be a valid Rasa intent.
+
+  - `component`: Any custom component
+
+- `onCustomResponse(resp, botUtter)`: A handler for the custom
+  responses returned from Rasa
 
   - `resp`: The parsed custom response object exactly as returned from Rasa
 
-  - `pushMsgToHistory(msg)`: A function that pushes the given
-    message to the message history. A message is an object with a
-    `direction` and one of the `text`, `buttons`, `quick_replies`
-    or `component` properties:
-
-      - `direction`: Either `in` (for "incoming") or `out` (for
-        "outgoing"
-
-      - `text`: The message text
-
-      - `buttons`: A list of button objects. Button object schema:
-
-        - `title`: The button title
-        - `payload`: The button payload. Should be a valid Rasa intent.
-
-      - `quick_replies`: A list of button objects. Quick replies
-        only differ from buttons with their ability of
-        disappearing after being clicked on. Button object schema:
-
-        - `title`: The button title
-        - `payload`: The button payload. Should be a valid Rasa intent.
-
-      - `component`: Any custom component
+  - `botUtter(msg)`: A function that pushes the given message to
+    the message history. See the full message object schema under
+    `onUtter(msg)`. Note that the `ts` and `direction` properties
+    aren't available here as they are set automatically.
 
 - `components`: Components to customize the look of the assistant.
   Can also be used to integrate the assistant to the platforms
@@ -368,9 +372,10 @@ In `./customResponseHandlers.js`
 
     - `onRef`: [A React ref callback](https://reactjs.org/docs/refs-and-the-dom.html#callback-refs)
       that expects the underlying DOM element as its sole
-      parameter. When a custom input is used, the ref needs to be
-      captured this way, to enable the assistant UI library to
-      handle behavior such as auto focusing.
+      parameter. When a custom input is used, this callback is
+      used to pass the ref to the library, which in turn handles
+      behavior such as auto focusing and blurring. If this is not
+      something you want, just don't use this.
 
   - `Template`: Template component that allows for free
     positioning of the other components

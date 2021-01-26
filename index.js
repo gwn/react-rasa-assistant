@@ -27,8 +27,9 @@ module.exports = ({
     rasaSocket,
     initialSessionId,
     initialMessage,
-    onCustomResponse = () => null,
-    onError = () => null,
+    onUtter = noop,
+    onCustomResponse = noop,
+    onError = noop,
     components: {
         TextMessage = defaultComponents.TextMessage,
         OptButton = defaultComponents.Button,
@@ -41,16 +42,22 @@ module.exports = ({
     const
         sockRef = useRef(null),
         sessionIdRef = useRef(null),
-        inputRef = useRef(null),
+        inputRef = useRef({focus: noop, blur: noop}),
 
         [msgDraft, setMsgDraft] = useState(''),
 
         [msgHistory, setMsgHistory] = useState([]),
 
         pushMsgToHistory = useCallback(
-            msg =>
-                setMsgHistory(lastMsgHistory =>
-                    [...lastMsgHistory, {ts: Date.now(), ...msg}])),
+            msg => {
+                const fullMsg = {ts: Date.now(), ...msg}
+
+                setMsgHistory(lastMsgHistory => [...lastMsgHistory, fullMsg])
+                onUtter(fullMsg)
+            },
+
+            [onUtter],
+        ),
 
         removeMsgFromHistory = useCallback(
             msgIdx =>
@@ -59,36 +66,39 @@ module.exports = ({
                     ...lastMsgHistory.slice(msgIdx + 1),
                 ])),
 
-        msgAssistant = useCallback(
-            message => {
-                debug('sending msg', message)
+        restartSession = useCallback(
+            (sock, session_id) =>
+                sockRef.current.emit('session_request', {session_id}),
+        ),
+
+        userUtter = useCallback(
+            (text, payload) => {
+                debug('sending msg', {text, payload})
 
                 sockRef.current.emit('user_uttered', {
                     session_id: sessionIdRef.current,
-                    message,
+                    message: payload || text,
                 })
+
+                pushMsgToHistory({direction: 'out', text})
             },
 
             [sockRef.current, sessionIdRef.current],
         ),
 
-        sendDraft = useCallback(
+        sendMsg = useCallback(
             () => {
-                msgAssistant(msgDraft)
-                pushMsgToHistory({direction: 'out', text: msgDraft})
+                userUtter(msgDraft)
                 setMsgDraft('')
             },
 
             [msgDraft],
         ),
 
-        restartSession = useCallback(
-            (sock, session_id) =>
-                sockRef.current.emit('session_request', {session_id}),
-        ),
-
-        handleIncoming = useCallback(
+        handleBotUtter = useCallback(
             msg => {
+                debug('bot_uttered', msg)
+
                 if (msg.text)
                     pushMsgToHistory({direction: 'in', text: msg.text})
 
@@ -99,8 +109,11 @@ module.exports = ({
                 if (msg.buttons)
                     pushMsgToHistory({direction: 'in', buttons: msg.buttons})
 
+                if (msg.quick_replies || msg.buttons)
+                    inputRef.current.blur()
+
                 if (!msg.text && !msg.quick_replies && !msg.buttons)
-                    onCustomResponse(msg, pushMsgToHistory)
+                    onCustomResponse(msg, handleBotUtter)
             })
 
     useEffect(() => {
@@ -129,16 +142,11 @@ module.exports = ({
 
                 inputRef.current.focus()
 
-                if (initialMessage) {
-                    msgAssistant(initialMessage)
-                    pushMsgToHistory({direction: 'out', text: initialMessage})
-                }
+                if (initialMessage)
+                    userUtter(initialMessage)
             })
 
-            .on('bot_uttered', msg => {
-                debug('bot_uttered', msg)
-                handleIncoming(msg)
-            })
+            .on('bot_uttered', handleBotUtter)
 
             .on('error', e => {
                 debug('error', e)
@@ -157,8 +165,7 @@ module.exports = ({
                         key: msg.ts + btn.payload,
                         children: btn.title,
                         onClick: () => {
-                            msgAssistant(btn.payload)
-                            pushMsgToHistory({direction: 'out',text: btn.title})
+                            userUtter(btn.title, btn.payload)
                             inputRef.current.focus()
 
                             if (msg.quick_replies)
@@ -174,12 +181,12 @@ module.exports = ({
         input: e(Input, {
             value: msgDraft,
             onChangeText: setMsgDraft,
-            onEnter: sendDraft,
+            onEnter: sendMsg,
             onRef: el => { inputRef.current = el },
         }),
 
         sendButton: e(SendButton, {
-            onClick: sendDraft,
+            onClick: sendMsg,
             children: 'Send',
         }),
 
@@ -189,3 +196,5 @@ module.exports = ({
         }),
     })
 }
+
+const noop = () => null
