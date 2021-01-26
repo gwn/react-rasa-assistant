@@ -138,6 +138,6 @@ In React Native the following socket option needs to be provided:
 
     useBot({
         sockUrl: '<your socket url>',
-        sockOpts={{transports: ['websocket']}}
+        sockOpts: {transports: ['websocket']},
         ...
     }))
