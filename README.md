@@ -65,7 +65,7 @@ Handle custom responses:
 
 ```js
 const Assistant = () => {
-    const {botUtter} =
+    const {
         msgHistory, onInputRef, userText, setUserText, sendUserText,
         selectOption, botUtter, restartSession,
     } =
