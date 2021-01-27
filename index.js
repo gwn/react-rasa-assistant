@@ -63,8 +63,8 @@ module.exports = ({
         ),
 
         selectOption = useCallback(
-            (text, payload, msgIdx) => {
-                userUtter(text, payload)
+            (title, payload, msgIdx) => {
+                userUtter(title, payload)
 
                 inputRef.current.focus()
 
