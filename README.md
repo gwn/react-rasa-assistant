@@ -35,13 +35,12 @@ const Assistant = () => {
 
             if ((msg.quick_replies || msg.buttons))
                 return <div key={msg.ts + '-btngroup'}>
-                    {(msg.quick_replies || msg.buttons).map(btn =>
+                    {(msg.quick_replies || msg.buttons).map((opt, optIdx) =>
                         <button
-                            key={btn.payload}
-                            onClick={() =>
-                                selectOption(btn.title, btn.payload, msgIdx)}
+                            key={opt.payload}
+                            onClick={() => selectOption(msgIdx, optIdx)}
                         >
-                            {btn.title}
+                            {opt.title}
                         </button>
                     )}
                 </div>
@@ -147,17 +146,15 @@ const Assistant = () => {
 - `sendUserText()`: Send the current `userText` to the assistant
   and empty its value.
 
-- `selectOption(title, payload, msgIdx)`: Select an option provided
-  by a message with the `buttons` or `quick_replies` property.
-  Args:
-
-  - `title`: The title of the button
-
-  - `payload`: The payload (intent) of the button
+- `selectOption(msgIdx, optIdx)`: Select an option provided by a
+  message with the `buttons` or `quick_replies` property. Args:
 
   - `msgIdx`: The index of the message that this button is a part
     of. This is required as in the case of quick replies, the
     button group is removed after an option is selected.
+
+  - `optIdx`: The index of the option to select in the `buttons`
+    or `quick_replies` array.
 
 - `botUtter(msg)`: Send a message from the bot, as if it was the
   bot talking. This is intended to be used to handle custom

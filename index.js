@@ -63,12 +63,16 @@ module.exports = ({
         ),
 
         selectOption = useCallback(
-            (title, payload, msgIdx) => {
-                userUtter(title, payload)
+            (msgIdx, optIdx) => {
+                const
+                    msg = msgHistory[msgIdx],
+                    opt = (msg.button || msg.quick_replies)[optIdx]
+
+                userUtter(opt.title, opt.payload)
 
                 inputRef.current.focus()
 
-                if (msgHistory[msgIdx].quick_replies)
+                if (msg.quick_replies)
                     removeMsgFromHistory(msgIdx)
             }
         ),
