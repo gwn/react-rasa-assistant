@@ -117,8 +117,17 @@ module.exports = ({
 
         socketErrorEventNames
             .forEach(errorEventName =>
-                sock.on(errorEventName, e =>
-                    onError({type: errorEventName, payload: e})))
+                sock.on(errorEventName, e => {
+                    if (
+                        errorEventName === 'disconnect'
+                        && e === 'io client disconnect'
+                    )
+                        // this is fired on manual disconnects so not an error
+                        return
+
+                    onError({type: errorEventName, payload: e})
+                }
+            ))
 
         sock
             .on('connect', () => restartSession(sock, initSessionId))
@@ -135,6 +144,8 @@ module.exports = ({
             })
 
             .on('bot_uttered', handleBotUtter)
+
+        return () => sock.close()
     }, [])
 
     return {
