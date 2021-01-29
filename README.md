@@ -209,3 +209,11 @@ The reason for this is that the default value for that option is
 Native. The Socket.io client doesn't automatically switch to
 Websocket connection if polling is failing, so this must be
 explicitly configured.
+
+
+## Pics or it didn't happen
+
+Visuals of an ugly assistant made with this hook:
+
+![assistant screenshot 1](./screenshots/1.jpg)
+![assistant screenshot 2](./screenshots/2.jpg)
