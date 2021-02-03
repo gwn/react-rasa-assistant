@@ -112,7 +112,10 @@ const Assistant = () => {
   continue a previous session.
 
 - `initMsg`: An optional text to be sent in the beginning of the
-  conversation.
+  conversation. Alternatively an object with the `title` and
+  `payload` attributes is supported too; in which case the `title`
+  will be shown in the conversation and the `payload` will be sent
+  to the server, just like case with buttons.
 
 - `onError(error)`: An optional handler that gets called each time
   the socket emits an error. Error object schema:

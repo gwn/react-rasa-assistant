@@ -140,7 +140,10 @@ module.exports = ({
                 inputRef.current.focus()
 
                 if (initMsg)
-                    userUtter(initMsg)
+                    if (typeof initMsg === 'object')
+                        userUtter(initMsg.title, initMsg.payload)
+                    else
+                        userUtter(initMsg)
             })
 
             .on('bot_uttered', handleBotUtter)
