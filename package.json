@@ -1,6 +1,6 @@
 {
   "name": "react-rasa-assistant",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "React hook for easily building custom Rasa assistants",
   "main": "index.js",
   "license": "ISC",
