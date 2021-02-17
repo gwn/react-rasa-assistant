@@ -66,7 +66,7 @@ module.exports = ({
             (msgIdx, optIdx) => {
                 const
                     msg = msgHistory[msgIdx],
-                    opt = (msg.button || msg.quick_replies)[optIdx]
+                    opt = (msg.buttons || msg.quick_replies)[optIdx]
 
                 userUtter(opt.title, opt.payload)
 
